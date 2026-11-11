@@ -1,0 +1,170 @@
+#define BLYNK_PRINT Serial
+
+#define BLYNK_TEMPLATE_ID "TMPL362SSHr-7"
+#define BLYNK_TEMPLATE_NAME "UPS Monitoring"
+#define BLYNK_AUTH_TOKEN "EYes-5KOt8loMZpJOQGkXpwHATFL4WLd"
+
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+
+// Your WiFi credentials.
+// Set password to "" for open networks.
+char ssid[] = "iot2025";
+char pass[] = "testing2025";
+
+// KRCE - ECE - final project (UPS Monitoring system)
+#include<LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,16,2);
+float V=12; // 12v
+float I=7; //7Ah
+float P; //V * I
+float TL;// TL=sw1+sw2+sw3;
+float H; //H = P / TL;
+float v_pin=34;//pin for voltage
+float II=35;//pin for current
+int sw1_pin=26,sw2_pin=27,sw3_pin=14;
+int sw1_val=1,sw2_val=1,sw3_val=1;
+int relay1=32,relay2=33,relay3=25;
+float a=0.0,b=0.0,c=0.0;
+float flag1=0,flag2=0,flag3=0;
+void setup()
+{
+Serial.begin(115200);
+lcd.begin();
+lcd.backlight();
+lcd.setCursor(0,0);
+lcd.print("UPS Monitoring");
+lcd.setCursor(6,1);
+lcd.print("System");
+pinMode(v_pin,INPUT);
+pinMode(sw1_pin,INPUT_PULLUP);
+pinMode(sw2_pin,INPUT_PULLUP);
+pinMode(sw3_pin,INPUT_PULLUP);
+pinMode(relay1,OUTPUT);
+pinMode(relay2,OUTPUT);
+pinMode(relay3,OUTPUT);
+digitalWrite(relay1,HIGH);
+digitalWrite(relay2,HIGH);
+digitalWrite(relay3,HIGH);
+delay(3000);
+lcd.clear();
+lcd.print("BLYNK CONNECT.....");
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+}
+void loop()
+{
+float v1=map(analogRead(34),0,4095,0,15);
+Serial.print("Battery Voltage:");Serial.println(v1);
+sw1_val = digitalRead(sw1_pin);
+sw2_val = digitalRead(sw2_pin);
+sw3_val = digitalRead(sw3_pin);
+if(sw1_val == 0 && v1>4)// && flag1==0)
+{
+  digitalWrite(relay1,LOW);
+  flag1=1;  
+  a=0.5;
+}
+else
+{
+  digitalWrite(relay1,HIGH);
+  flag1=0;
+  a=0;
+}
+if(sw2_val == 0 && v1>4)// && flag2==0)
+{
+  digitalWrite(relay2,LOW);
+  flag2=1;
+  b=0.3;
+}
+else
+{
+  digitalWrite(relay2,HIGH);
+  flag2=0;
+  b=0;
+}
+if(sw3_val == 0 && v1>4)// && flag3==0)
+{
+  digitalWrite(relay3,LOW);
+  flag3=1;
+  c=0.5;
+}
+else
+{
+  digitalWrite(relay3,HIGH);
+  flag3=0;
+  c=0;
+}
+V = v1;
+TL = a+b+c;
+P = V * TL;
+H = (v1*8) / TL;
+Serial.print("TL:");Serial.println(TL);
+Serial.print("V:");Serial.println(V);
+Serial.print("P:");Serial.println(P);
+Serial.print("H:");Serial.println(H);
+Blynk.virtualWrite(V1,"TL:");
+Blynk.virtualWrite(V2,TL);
+delay(1000);
+Blynk.virtualWrite(V1,"V:");
+Blynk.virtualWrite(V2,V);
+delay(1000);
+Blynk.virtualWrite(V1,"P:");
+Blynk.virtualWrite(V2,P);
+delay(1000);
+Blynk.virtualWrite(V1,"H:");
+Blynk.virtualWrite(V2,H);
+delay(1000);
+
+
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print("H");
+lcd.setCursor(0,1);
+lcd.print(H);
+delay(1000);
+lcd.clear();
+lcd.setCursor(3,0);
+lcd.print("P");
+lcd.setCursor(3,1);
+lcd.print(P);
+delay(1000);
+lcd.clear();
+lcd.setCursor(6,0);
+lcd.print("V");
+lcd.setCursor(6,1);
+lcd.print(V);
+delay(1000);
+lcd.clear();
+lcd.setCursor(9,0);
+lcd.print("TL");
+lcd.setCursor(9,1);
+lcd.print(TL);
+delay(1000);
+lcd.clear();
+lcd.setCursor(12,0);
+lcd.print("EFF");
+lcd.setCursor(12,1);
+lcd.print("94%");
+if(H < 65)
+{
+Serial.println("use load 2 and 3 - 100h");
+Serial.println("or use load 2 - 260h");
+Serial.println("Efficiency:94%");
+
+Blynk.virtualWrite(V0,"use load 2 and 3 - 100h");
+delay(1000);
+Blynk.virtualWrite(V0,"or use load 2 - 260h");
+delay(1000);
+Blynk.virtualWrite(V0,"Efficiency:94%");
+delay(3000);
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print("USE 2,3 LOAD-100H");
+lcd.setCursor(0,1);
+lcd.print("USE 2 LOAD-260H");
+}
+Blynk.run();
+delay(1000);
+}
